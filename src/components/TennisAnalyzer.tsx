@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   Activity,
   AlertCircle,
@@ -9,12 +10,14 @@ import {
   ClipboardList,
   Dumbbell,
   Gauge,
+  Info,
   Loader2,
   Play,
   Upload,
   Video,
 } from "lucide-react";
 import { extractPoseSummary } from "@/lib/analysis/pose-extraction";
+import { getMetricGuideItem, type MetricGuideItem } from "@/lib/analysis/metric-guide";
 import type { AnalyzeApiError, AnalyzeApiSuccess, DiagnosisResult, PoseSummary } from "@/lib/analysis/types";
 import { validateVideoFile } from "@/lib/analysis/validation";
 
@@ -116,9 +119,18 @@ export function TennisAnalyzer() {
               a focused technique diagnosis.
             </p>
           </div>
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#171713] px-4 py-2 text-sm font-medium text-white">
-            <Activity size={16} />
-            {statusCopy[status]}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/metrics"
+              className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-[#d8d1c2] bg-white px-4 text-sm font-semibold text-[#245a3d] transition hover:bg-[#fbfaf7]"
+            >
+              <Info size={16} />
+              Metrics guide
+            </Link>
+            <div className="inline-flex h-10 w-fit items-center gap-2 rounded-full bg-[#171713] px-4 text-sm font-medium text-white">
+              <Activity size={16} />
+              {statusCopy[status]}
+            </div>
           </div>
         </header>
 
@@ -215,24 +227,26 @@ function ProgressMessage({ message }: { message: string }) {
 
 function PoseSignals({ summary }: { summary: PoseSummary }) {
   const metrics = [
-    ["Pose visibility", `${Math.round(summary.confidence.averageVisibility * 100)}%`],
-    ["Sampled frames", summary.video.sampledFrames.toString()],
-    ["Stance ratio", formatMetric(summary.metrics.stanceWidthRatio.value)],
-    ["Balance drift", formatMetric(summary.metrics.balanceDriftRatio.value)],
-  ];
+    { id: "poseVisibility", label: "Pose visibility", value: `${Math.round(summary.confidence.averageVisibility * 100)}%` },
+    { id: "sampledFrames", label: "Sampled frames", value: summary.video.sampledFrames.toString() },
+    { id: "stanceRatio", label: "Stance ratio", value: formatMetric(summary.metrics.stanceWidthRatio.value) },
+    { id: "balanceDrift", label: "Balance drift", value: formatMetric(summary.metrics.balanceDriftRatio.value) },
+  ] satisfies Array<{ id: MetricGuideItem["id"]; label: string; value: string }>;
 
   return (
     <div className="rounded-lg border border-[#d8d1c2] bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Gauge size={18} className="text-[#245a3d]" />
-        <h2 className="text-lg font-semibold text-[#171713]">Motion Signals</h2>
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Gauge size={18} className="text-[#245a3d]" />
+          <h2 className="text-lg font-semibold text-[#171713]">Local Pose Signals</h2>
+        </div>
+        <Link href="/metrics" className="text-sm font-semibold text-[#245a3d] hover:text-[#1b4830]">
+          View visual guide
+        </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {metrics.map(([label, value]) => (
-          <div key={label} className="rounded-md border border-[#e5dfd3] bg-[#fbfaf7] p-3">
-            <p className="text-xs font-medium uppercase tracking-normal text-[#777064]">{label}</p>
-            <p className="mt-1 text-xl font-semibold text-[#171713]">{value}</p>
-          </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {metrics.map((metric) => (
+          <MetricSignalCard key={metric.id} id={metric.id} label={metric.label} value={metric.value} />
         ))}
       </div>
       {summary.observations.length ? (
@@ -245,6 +259,35 @@ function PoseSignals({ summary }: { summary: PoseSummary }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+function MetricSignalCard({ id, label, value }: { id: MetricGuideItem["id"]; label: string; value: string }) {
+  const guide = getMetricGuideItem(id);
+
+  return (
+    <div className="relative rounded-md border border-[#e5dfd3] bg-[#fbfaf7] p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-normal text-[#777064]">{label}</p>
+        {guide ? (
+          <details className="group">
+            <summary
+              className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full border border-[#d8d1c2] bg-white text-[#245a3d] transition hover:bg-[#edf5e8]"
+              aria-label={`Explain ${label}`}
+            >
+              <Info size={14} />
+            </summary>
+            <div className="absolute right-0 top-10 z-20 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-[#d8d1c2] bg-white p-3 text-left shadow-lg sm:right-2">
+              <p className="text-sm font-semibold text-[#171713]">{guide.name}</p>
+              <p className="mt-1 text-xs leading-5 text-[#5d594f]">{guide.shortDefinition}</p>
+              <code className="mt-2 block rounded bg-[#171713] px-2 py-1 text-xs text-white">{guide.formula}</code>
+              <p className="mt-2 text-xs leading-5 text-[#777064]">{guide.caveat}</p>
+            </div>
+          </details>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xl font-semibold text-[#171713]">{value}</p>
     </div>
   );
 }

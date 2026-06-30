@@ -4,6 +4,8 @@ A local Next.js prototype for tennis technique analysis.
 
 Flow: upload a short swing video -> extract pose/motion signals in the browser -> send the video and pose summary to OpenRouter -> receive a tennis-coach diagnosis with detected stroke, confidence, issues, cues, and drills.
 
+The app also includes a visual metrics guide at `/metrics` explaining pose visibility, sampled frames, stance ratio, balance drift, and follow-through height.
+
 ## Setup
 
 ```bash
